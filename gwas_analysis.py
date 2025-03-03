@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 GWAS_LINK = "https://www.ebi.ac.uk/gwas/api/v2/efotraits/{}/associations/download?includeBgTraits=false&includeChildTraits=true"
 
 
-def tidy_data(df: pd.DataFrame, keep=None) -> pd.DataFrame:
+def tidy_associations(df: pd.DataFrame, keep=None) -> pd.DataFrame:
     if keep is None:
         keep = ['orValue', 'riskFrequency']
 
@@ -43,20 +43,43 @@ def tidy_data(df: pd.DataFrame, keep=None) -> pd.DataFrame:
 
     # Where multiple studies show the same association, only take the statistics for the study with the smallest p-value
     tidy = tidy.sort_values('pValue').drop_duplicates('riskAllele')
+
+    tidy.rename(columns={
+        'orValue': 'odds_ratio',
+        'riskAllele': 'risk_allele',
+    }, inplace=True)
+
+    tidy.set_index('risk_allele', inplace=True)
     return tidy
 
 
+def tidy_summary_stats(df: pd.DataFrame, significance=1e-2) -> pd.DataFrame:
+    to_drop = ['chromosome', 'base_pair_location', 'effect_allele', 'other_allele', 'effect_allele_frequency', 'beta', 'variant_id', 'ci_upper', 'ci_lower']
+    tidy: pd.DataFrame = df[df['p_value'] < significance].copy()
+
+    tidy['risk_allele'] = tidy['chromosome'].astype(str) + ":" + tidy['base_pair_location'].astype(str) + "-" + tidy['effect_allele'] + tidy['other_allele']
+
+    # Remove columns that are not needed
+    tidy.drop(columns=to_drop, inplace=True, errors='ignore')
+    tidy.set_index('risk_allele', inplace=True)
+
+    return tidy
+
 def dataframe_from_gwas(efo_id: str) -> pd.DataFrame:
-    return tidy_data(pd.read_csv(GWAS_LINK.format(efo_id), sep='\t'))
+    return tidy_associations(pd.read_csv(GWAS_LINK.format(efo_id), sep='\t'))
 
 
 def main():
-    # t1dm = pd.read_csv('data/diabetes.tsv', sep='\t')
-    t1dm = dataframe_from_gwas("MONDO_0005147")
-    ra = dataframe_from_gwas("EFO_0000685")
+    pd.options.display.max_columns = None
+    pd.options.display.max_rows = None
 
-    merged_df = pd.merge(t1dm, ra, how='inner', on='riskAllele', suffixes=("_diabetes", "_arthritis"))
-    print(merged_df.to_string())
+    t1dm = tidy_summary_stats(pd.read_csv('data/diabetes.tsv', sep='\t'))
+    ra = tidy_summary_stats(pd.read_csv('data/ra.tsv', sep='\t').loc[:, 'variant_id':'beta'])
+
+    merged_df = pd.merge(t1dm, ra, how='inner', on='risk_allele', suffixes=("_diabetes", "_arthritis"))
+    merged_df.to_csv('data/merged.tsv', sep='\t')
+
+    print(merged_df)
 
 
 if __name__ == '__main__':
