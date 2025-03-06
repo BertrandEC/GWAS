@@ -214,7 +214,7 @@ def plot_logistic_regression(model, x_vals):
     log_odds = model.params[0] + model.params[1] * np.log(x_vals)
     # Convert log-odds to probability using the sigmoid function
     probabilities = 1 / (1 + np.exp(-log_odds))
-    
+
     plt.figure(figsize=(8, 6))
     plt.plot(x_vals, probabilities, label='Logistic Regression Curve', color='blue')
     plt.xlabel('log(OR1)')
@@ -233,17 +233,17 @@ def simulate_individual_prs_two_diseases(df, or_col1, freq_col1, or_col2, freq_c
     # Default allele frequency is 0.5 if not provided
     freq1 = df[freq_col1] if freq_col1 is not None else 0.5
     freq2 = df[freq_col2] if freq_col2 is not None else 0.5
-    
+
     # Simulate genotypes using the binomial distribution based on Hardy-Weinberg equilibrium.
     # Simulate genotypes (0, 1, or 2 copies of risk allele) for num_individuals
     # Using binomial distribution: number of successes (alleles) in 2 trials, with probability `freq`
     genotypes1 = np.random.binomial(2, freq1.values[:, np.newaxis], (len(df), num_individuals))
     genotypes2 = np.random.binomial(2, freq2.values[:, np.newaxis], (len(df), num_individuals))
-    
+
     # Compute the Polygenic Risk Scores (PRS) for each individual
     prs_values1 = np.dot(genotypes1.T, Beta1)  # PRS for Disease 1
     prs_values2 = np.dot(genotypes2.T, Beta2)  # PRS for Disease 2
-    
+
     return prs_values1, prs_values2
 
 
