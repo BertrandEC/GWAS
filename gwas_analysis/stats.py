@@ -4,9 +4,7 @@ import statsmodels.api as sm
 import scipy.stats as stats
 
 
-GWAS_LINK = "https://www.ebi.ac.uk/gwas/api/v2/efotraits/{}/associations/download?includeBgTraits=false&includeChildTraits=true"
-
-def tidy_summary_stats(df: pd.DataFrame, significance=1e-2, rsid=True) -> pd.DataFrame:
+def tidy_summary_stats(df: pd.DataFrame, significance=1e-2, rsid=False) -> pd.DataFrame:
     to_keep = ['risk_allele', 'chromosome', 'base_pair_location', 'p_value', 'neg_log_p_value', 'beta', 'odds_ratio', 'z_score', 'effect_allele_frequency', 'effect_allele', 'other_allele']
     tidy: pd.DataFrame = df[df['p_value'] < significance].copy()
 
