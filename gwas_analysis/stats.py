@@ -6,19 +6,29 @@ import scipy.stats as stats
 
 GWAS_LINK = "https://www.ebi.ac.uk/gwas/api/v2/efotraits/{}/associations/download?includeBgTraits=false&includeChildTraits=true"
 
-def tidy_summary_stats(df: pd.DataFrame, significance=1e-2) -> pd.DataFrame:
-    to_keep = ['risk_allele', 'p_value', 'neg_log_p_value', 'beta', 'z_score', 'effect_allele', 'other_allele']
+def tidy_summary_stats(df: pd.DataFrame, significance=1e-2, rsid=True) -> pd.DataFrame:
+    to_keep = ['risk_allele', 'chromosome', 'base_pair_location', 'p_value', 'neg_log_p_value', 'beta', 'odds_ratio', 'z_score', 'effect_allele_frequency', 'effect_allele', 'other_allele']
     tidy: pd.DataFrame = df[df['p_value'] < significance].copy()
 
-    tidy['risk_allele'] = tidy['chromosome'].astype(str) + ":" + tidy['base_pair_location'].astype(str) + "-" + tidy['effect_allele'] + tidy['other_allele']
+    rsid_col = next(filter(lambda c: c in tidy, ['variant_id', 'rsid']), None)
+    if rsid or rsid_col is not None:
+        tidy['risk_allele'] = tidy[rsid_col]
+    else:
+        tidy['risk_allele'] = tidy['chromosome'].astype(str) + ":" + tidy['base_pair_location'].astype(str) + ":" + tidy['effect_allele'] + ':' + tidy['other_allele']
 
     tidy['neg_log_p_value'] = -np.log10(tidy['p_value'])
-    tidy['z_score'] = np.sqrt(stats.chi2.isf(tidy['p_value'], 1))
+    tidy['beta'] = tidy['beta'].fillna(np.log(tidy['odds_ratio']))
+    tidy['odds_ratio'] = tidy['odds_ratio'].fillna(np.exp(tidy['beta']))
+
+    if 'standard_error' in tidy:
+        tidy['z_score'] = tidy['beta'] / tidy['standard_error']
+    else:
+        tidy['z_score'] = np.nan
+    tidy['z_score_p'] = np.sqrt(stats.chi2.isf(tidy['p_value'], 1))
+    tidy['z_score'] = tidy['z_score'].fillna(tidy['z_score_p'])
 
     # Remove columns that are not needed
     tidy = tidy[to_keep]
-    tidy.set_index('risk_allele', inplace=True)
-
     return tidy
 
 def manual_pearson_correlation(df, col1, col2):

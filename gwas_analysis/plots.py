@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 import numpy as np
-from stats import manual_pearson_correlation
+from .stats import manual_pearson_correlation
 
 def plot_prs_comparison(prs1, prs2):
     """Plots the PRS distributions for two diseases to compare genetic risk."""
@@ -15,19 +16,26 @@ def plot_prs_comparison(prs1, prs2):
     plt.show()
 
 
-def plot_manhattan(df, pval_col, snp_col):
-    # Sort by SNP
-    df_sorted = df.sort_values(by=snp_col)
-    # Plot the Manhattan plot
-    plt.figure(figsize=(10, 6))
-    plt.scatter(df_sorted[snp_col], -np.log10(df_sorted[pval_col]), c='blue', s=10)
-    plt.xlabel('SNP')
-    plt.ylabel('-log10(p-value)')
-    plt.title('Manhattan Plot for SNP Significance')
+def plot_manhattan(df: pd.DataFrame, pval_col: str, snp_col: str):
+    df_sorted  = df.sort_values(['chromosome','base_pair_location'])
+    df_sorted.reset_index(inplace=True, drop=True)
+    df_sorted['i'] = df_sorted.index
+
+    plot = sns.relplot(data=df_sorted, x='i', y=neg_log_pval_col1, aspect=3.7,
+                       hue='chromosome', palette = 'bright', legend=False)
+
+    chrom_df=df_sorted.groupby('chromosome')['i'].median()
+    plot.ax.set_xlabel('chromosome')
+    plot.ax.set_xticks(chrom_df)
+    plot.ax.set_xticklabels(chrom_df.index)
+    plot.figure.suptitle('Manhattan plot')
     plt.show()
 
 
-def plot_joint_manhattan(df, snp_pos_col, neg_log_pval_col1, neg_log_pval_col2):
+def plot_joint_manhattan(df: pd.DataFrame, snp_pos_col: str, neg_log_pval_col1: str, neg_log_pval_col2: str):
+    """Plots a joint Manhattan plot comparing SNPs possitions across two diseases using -log10(p-values). """
+
+    df  = df.sort_values(['chromosome','base_pair_location'])
     """Plots a joint Manhattan plot comparing SNPs possitions across two diseases using -log10(p-values). """
 
     plt.figure(figsize=(12, 6))
@@ -41,8 +49,7 @@ def plot_joint_manhattan(df, snp_pos_col, neg_log_pval_col1, neg_log_pval_col2):
     plt.legend()
     plt.show()
 
-
-def plot_scatter_with_regression(df, col1, col2):
+def plot_scatter_with_regression(df: pd.DataFrame, col1: str, col2: str):
     """For visualizing relationships between two variables"""
     correlation = manual_pearson_correlation(df, col1, col2)
 
