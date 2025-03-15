@@ -62,7 +62,7 @@ frame_outputs.grid_propagate(False)
 
 # Define title in the frame_title
 lbl_title = tk.Label(frame_title, text="CLAS: Cross-Linkage Association Studies",
-                     font=("Helvetica", round(user_height/25), "bold"), fg="white", bg="#003366")
+                     font=("Roboto", round(user_height/25), "bold"), fg="white", bg="#003366")
 # Ensure the frame fills the available space
 frame_title.pack(fill="both", expand=True)
 # Center the label within the frame
@@ -70,24 +70,24 @@ lbl_title.pack(expand=True)
 
 
 # Defining label in frame_inputs
-lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS summary (.tsv.gz):", font=("Helvetica", round(user_height/40), "bold"), fg="#333", bg="E3F2FD")
-lbl_inputs_1 = tk.Label(frame_inputs, text="No file selected", font=("Helvetica ", round(user_height/60)))
-lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", font=("Helvetica", round(user_height/60)))
-lbl_inputs_3 = tk.Label(frame_inputs, text="Select statistical method:", font=("Helvetica", round(user_height/40), "bold"), fg="#333", bg="E3F2FD")
-lbl_inputs_4 = tk.Label(frame_inputs, text="Select correlation test:", font=("Helvetica", round(user_height/40), "bold"), fg="#333", bg="E3F2FD")
+lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS Summary (.tsv.gz):", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#BFE0E6")
+lbl_inputs_1 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
+lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
+lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#BFE0E6")
+lbl_inputs_4 = tk.Label(frame_inputs, text="Select Correlation Test:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#BFE0E6")
 
 # Defining button in frame_inputs
-upload_1 = tk.Button(frame_inputs, text="Genetic Disease 1", font=("Helvetica", round(user_height/75)), command=lambda: upload_file(lbl_inputs_1))
-upload_2 = tk.Button(frame_inputs, text="Genetic Disease 2", font=("Helvetica", round(user_height/75)), command=lambda: upload_file(lbl_inputs_2))
-go = tk.Button(frame_inputs, text="GO!", font=("Helvetica", round(user_height/75), "bold"), bg="#FF3B3B", fg="red", padx=20, pady=10, command=lambda: GO())
+upload_1 = tk.Button(frame_inputs, text="Genetic Disease 1", font=("Roboto", round(user_height/70)), command=lambda: upload_file(lbl_inputs_1))
+upload_2 = tk.Button(frame_inputs, text="Genetic Disease 2", font=("Roboto", round(user_height/70)), command=lambda: upload_file(lbl_inputs_2))
+go = tk.Button(frame_inputs, text="GO!", font=("Roboto", round(user_height/60), "bold"), bg="#FF3B3B", fg="red", padx=20, pady=10, command=lambda: GO())
 
 # Defining radio buttons in frame_inputs
 stats_test = tk.StringVar(value="")
 cor_method = tk.StringVar(value="")
-radio1 = tk.Radiobutton(frame_inputs, text="Linear Regression", font=("Helvetica", round(user_height/75)) , variable=stats_test, value="LR")
-radio2 = tk.Radiobutton(frame_inputs, text="Linkage Disequilibrium Score Regression (LDSC)", font=("Helvetica", round(user_height/75)), variable=stats_test, value="LDSC")
-radio3 = tk.Radiobutton(frame_inputs, text="Pearson's", font=("Helvetica", round(user_height/75)), variable=cor_method, value="P")
-radio4 = tk.Radiobutton(frame_inputs, text="Spearman's", font=("Helvetica", round(user_height/75)), variable=cor_method, value="S")
+radio1 = tk.Radiobutton(frame_inputs, text="Linear Regression", font=("Roboto", round(user_height/70)), variable=stats_test, value="LR")
+radio2 = tk.Radiobutton(frame_inputs, text="Linkage Disequilibrium Score Regression (LDSC)", font=("Roboto", round(user_height/70)), variable=stats_test, value="LDSC")
+radio3 = tk.Radiobutton(frame_inputs, text="Pearson's", font=("Roboto", round(user_height/70)), variable=cor_method, value="P")
+radio4 = tk.Radiobutton(frame_inputs, text="Spearman's", font=("Roboto", round(user_height/70)), variable=cor_method, value="S")
 
 
 # Calling the widgets
