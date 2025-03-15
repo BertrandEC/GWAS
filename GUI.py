@@ -70,11 +70,11 @@ lbl_title.pack(expand=True)
 
 
 # Defining label in frame_inputs
-lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS Summary (.tsv.gz):", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#BFE0E6")
+lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS Summary (.tsv.gz):", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6")
 lbl_inputs_1 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
 lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
-lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#BFE0E6")
-lbl_inputs_4 = tk.Label(frame_inputs, text="Select Correlation Test:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#BFE0E6")
+lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6")
+lbl_inputs_4 = tk.Label(frame_inputs, text="Select Correlation Test:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6")
 
 # Defining button in frame_inputs
 upload_1 = tk.Button(frame_inputs, text="Genetic Disease 1", font=("Roboto", round(user_height/70)), command=lambda: upload_file(lbl_inputs_1))
