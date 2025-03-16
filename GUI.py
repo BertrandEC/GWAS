@@ -9,14 +9,14 @@ from threading import Thread
 
 from gwas_analysis.plots import plot_joint_manhattan, plot_scatter_with_regression
 from gwas_analysis.stats import tidy_summary_stats
+from gwas_analysis.ldsc import ldsc, LDSCResult
 
 # Defining Function
 # Function to upload a file and display its content in the GUI
 def upload_file(upload_label):
     file_path = filedialog.askopenfilename(filetypes=[("TSV files", "*.tsv")])
     if file_path:
-        # confirm = messagebox.askyesno("Confirm Upload", f"Are you sure you want to upload this file?\n{file_path}")
-        confirm = True
+        confirm = messagebox.askyesno("Confirm Upload", f"Are you sure you want to upload this file?\n{file_path}")
         if confirm:
             if upload_label.winfo_name() == "disease1":
                 disease1_path.set(file_path)
@@ -41,10 +41,16 @@ def shorten_path(full_path):
         return str(p)
 
 def load_data():
+    if stats_test.get() == "LDSC":
+        root.after(0, lambda: go.config(text="Calculating LDSC..."))
+        result = ldsc(disease1_path.get(), ldsc_n1.get(), disease2_path.get(), ldsc_n2.get())
+        root.after(0, display_ldsc, result)
+        return
+
     with open(disease1_path.get(), 'rb', buffering=0) as f:
-        hash1 = hashlib.file_digest(f, 'sha1').hexdigest()
+        hash1 = hashlib.file_digest(f, 'md5').hexdigest()
     with open(disease2_path.get(), 'rb', buffering=0) as f:
-        hash2 = hashlib.file_digest(f, 'sha1').hexdigest()
+        hash2 = hashlib.file_digest(f, 'md5').hexdigest()
 
     try:
         root.after(0, lambda: go.config(text="Reading merged data file"))
@@ -62,18 +68,37 @@ def load_data():
     root.after(0, lambda: go.config(text="Computing statistical method"))
     match stats_test.get():
         case "LR":
-            filtered_df = merged_df[(merged_df['p_value_diabetes'] < 1e-5) | (merged_df['p_value_arthritis'] < 1e-5)]
+            filtered_df = merged_df[(merged_df['p_value_disease1'] < 1e-4) | (merged_df['p_value_disease2'] < 1e-4)]
+            # filtered_df = filtered_df[(np.abs(filtered_df['beta_disease1']) > 0.01) | (np.abs(filtered_df['beta_disease2']) > 0.01)]
+            merged_df.to_csv(f'data/{hash1}_{hash2}_filtered.tsv', index=False, sep='\t')
             if cor_method.get() == "B":
                 plot_scatter_with_regression(filtered_df, col1='beta_disease1', col2='beta_disease2')
             elif cor_method.get() == "P":
                 plot_scatter_with_regression(filtered_df, col1='neg_log_p_value_disease1', col2='neg_log_p_value_disease2')
-        case "LDSC": pass
         case "M":
             plot_joint_manhattan(merged_df, 'neg_log_p_value_disease1', 'neg_log_p_value_disease2')
 
-    root.after(0, display_results)
+    root.after(0, display_image)
 
-def display_results():
+def display_image():
+    result_image = tk.PhotoImage(file='data/figure.png')
+    result_label.config(text='', image=result_image)
+    result_label.image = result_image
+    result_label.grid()
+    go.config(text="GO!", state="normal")
+
+
+def display_ldsc(result: LDSCResult | None):
+    if result:
+        str_result = f"""
+        Genetic correlation: {result.correlation}
+        Standard error: {result.correlation_std_error}
+        P value: {result.p_value}
+        """
+    else:
+        str_result = "Unable to compute LDSC for provided datasets"
+    result_label.config(text=str_result, image='')
+    result_label.grid()
     go.config(text="GO!", state="normal")
 
 
@@ -113,7 +138,7 @@ def show_test_variables():
             pass
 
 if __name__ == "__main__":
-
+    Path("data").mkdir(parents=True, exist_ok=True)
     # Setting up the window
     # Defining an instance window called "root" into Tk class
     root = tk.Tk()
@@ -156,7 +181,8 @@ if __name__ == "__main__":
     lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", name='disease2', font=("Roboto", round(user_height/70)))
     lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
     lbl_inputs_4 = tk.Label(frame_inputs, text="Select Options:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
-    # lbl_inputs_5 = tk.Label(frame_inputs, text="Results:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
+
+    lbl_outputs_1 = tk.Label(frame_outputs, text="Results:", font=("Roboto", round(user_height / 45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
 
     # Defining button in frame_inputs
     upload_1 = tk.Button(frame_inputs, text="Genetic Disease 1", font=("Roboto", round(user_height/70)), command=lambda: upload_file(lbl_inputs_1))
@@ -181,6 +207,8 @@ if __name__ == "__main__":
     ldsc_input_1 = tk.Entry(frame_inputs, textvariable=ldsc_n1, validate="all", validatecommand=(vcmd, "%P"))
     ldsc_input_2 = tk.Entry(frame_inputs, textvariable=ldsc_n2, validate="all", validatecommand=(vcmd, "%P"))
 
+    result_label = tk.Label(frame_outputs, font=("Roboto", round(user_height/35), "bold"))
+
     # Calling the widgets
     # Title
     frame_title.pack()
@@ -193,7 +221,6 @@ if __name__ == "__main__":
 
     frame_inputs.columnconfigure(0, weight=1, minsize=(user_width*0.25*0.50))
     frame_inputs.columnconfigure(1, weight=1, minsize=(user_width*0.25*0.50))
-    # frame_inputs.columnconfigure(2, weight=1, minsize=(user_width*0.50))
 
 
     lbl_inputs_0.grid(row=1,column=0, columnspan=2, sticky="w")
@@ -210,7 +237,6 @@ if __name__ == "__main__":
     lbl_inputs_4.grid(row=10,column=0, columnspan=2, sticky="w")
     method1.grid(row=11, column=0, columnspan=2, sticky="w")
     method2.grid(row=12, column=0, columnspan=2, sticky="w")
-    # lbl_inputs_5.grid(row=1, column=2, columnspan=2, sticky="w")
     frame_inputs.rowconfigure(13, minsize=20)
     go.grid(row=14,column=0, columnspan=2, sticky="w")
 
@@ -219,6 +245,13 @@ if __name__ == "__main__":
 
     # Outputs
     frame_outputs.grid(row=0, column=1)
+    lbl_outputs_1.pack(anchor="center")
+    result_label.pack(anchor="center")
+    frame_outputs.columnconfigure(0, weight=1, minsize=(user_width*0.60))
+
+    lbl_outputs_1.grid(row=1, column=0,  sticky="we")
+    result_label.grid(row=2,column=0, rowspan=10, sticky="we")
+    # result_label.grid_remove()
 
     # Run the application
     root.mainloop()
