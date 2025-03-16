@@ -15,8 +15,14 @@ def tidy_summary_stats(df: pd.DataFrame, significance=1e-2, rsid=False) -> pd.Da
         tidy['risk_allele'] = tidy['chromosome'].astype(str) + ":" + tidy['base_pair_location'].astype(str) + ":" + tidy['effect_allele'] + ':' + tidy['other_allele']
 
     tidy['neg_log_p_value'] = -np.log10(tidy['p_value'])
-    tidy['beta'] = tidy['beta'].fillna(np.log(tidy['odds_ratio']))
-    tidy['odds_ratio'] = tidy['odds_ratio'].fillna(np.exp(tidy['beta']))
+    if 'odds_ratio' in tidy:
+        if not 'beta' in tidy:
+            tidy['odds_ratio'] = np.nan
+        tidy['beta'] = tidy['beta'].fillna(np.log(tidy['odds_ratio']))
+    if 'beta' in tidy:
+        if not 'odds_ratio' in tidy:
+            tidy['odds_ratio'] = np.nan
+        tidy['odds_ratio'] = tidy['odds_ratio'].fillna(np.exp(tidy['beta']))
 
     if 'standard_error' in tidy:
         tidy['z_score'] = tidy['beta'] / tidy['standard_error']

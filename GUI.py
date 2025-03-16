@@ -1,16 +1,27 @@
 # Importing module
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, StringVar
 from tkinter import messagebox
 from pathlib import Path
+import pandas as pd
+import hashlib
+from threading import Thread
+
+from gwas_analysis.plots import plot_joint_manhattan, plot_scatter_with_regression
+from gwas_analysis.stats import tidy_summary_stats
 
 # Defining Function
 # Function to upload a file and display its content in the GUI
 def upload_file(upload_label):
     file_path = filedialog.askopenfilename(filetypes=[("TSV files", "*.tsv")])
     if file_path:
-        confirm = messagebox.askyesno("Confirm Upload", f"Are you sure you want to upload this file?\n{file_path}")
+        # confirm = messagebox.askyesno("Confirm Upload", f"Are you sure you want to upload this file?\n{file_path}")
+        confirm = True
         if confirm:
+            if upload_label.winfo_name() == "disease1":
+                disease1_path.set(file_path)
+            else:
+                disease2_path.set(file_path)
             upload_label.config(text=f"{shorten_path(file_path)}", font = ("Helvetica", round(user_height/70)))
             check_files_uploaded()
         else:
@@ -29,15 +40,55 @@ def shorten_path(full_path):
     else:
         return str(p)
 
-def GO():
+def load_data():
+    with open(disease1_path.get(), 'rb', buffering=0) as f:
+        hash1 = hashlib.file_digest(f, 'sha1').hexdigest()
+    with open(disease2_path.get(), 'rb', buffering=0) as f:
+        hash2 = hashlib.file_digest(f, 'sha1').hexdigest()
+
+    try:
+        root.after(0, lambda: go.config(text="Reading merged data file"))
+        merged_df = pd.read_csv(f'data/{hash1}_{hash2}.tsv', sep='\t')
+    except FileNotFoundError:
+        root.after(0, lambda: go.config(text="Loading disease 1"))
+        disease1 = tidy_summary_stats(pd.read_csv(disease1_path.get(), sep='\t'), significance=1)
+        root.after(0, lambda: go.config(text="Loading disease 2"))
+        disease2 = tidy_summary_stats(pd.read_csv(disease2_path.get(), sep='\t'), significance=1)
+        root.after(0, lambda: go.config(text="Merging datasets"))
+        merged_df = pd.merge(disease1, disease2, how='inner', on=['risk_allele', 'chromosome', 'base_pair_location', 'effect_allele', 'other_allele'], suffixes=("_disease1", "_disease2"))
+        root.after(0, lambda: go.config(text="Merging datasets"))
+        merged_df.to_csv(f'data/{hash1}_{hash2}.tsv', index=False, sep='\t')
+
+    root.after(0, lambda: go.config(text="Computing statistical method"))
     match stats_test.get():
-        case "LR": pass
+        case "LR":
+            filtered_df = merged_df[(merged_df['p_value_diabetes'] < 1e-5) | (merged_df['p_value_arthritis'] < 1e-5)]
+            if cor_method.get() == "B":
+                plot_scatter_with_regression(filtered_df, col1='beta_disease1', col2='beta_disease2')
+            elif cor_method.get() == "P":
+                plot_scatter_with_regression(filtered_df, col1='neg_log_p_value_disease1', col2='neg_log_p_value_disease2')
         case "LDSC": pass
-        case "M": pass
+        case "M":
+            plot_joint_manhattan(merged_df, 'neg_log_p_value_disease1', 'neg_log_p_value_disease2')
+
+    root.after(0, display_results)
+
+def display_results():
+    go.config(text="GO!", state="normal")
+
+
+def GO():
+    if not check_files_uploaded(): return
+    go.config(text="Loading...", state="disabled")
+    thread = Thread(target=load_data)
+    thread.start()
+
 
 def check_files_uploaded():
     if lbl_inputs_1.cget("text") != "No file selected" and lbl_inputs_2.cget("text") != "No file selected":
         go.config(bg="green")
+        return True
+    return False
 
 def integer_validate(x: str):
     return x.isdigit() or not x
@@ -101,10 +152,11 @@ if __name__ == "__main__":
 
     # Defining label in frame_inputs
     lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS Summary (.tsv):", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
-    lbl_inputs_1 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
-    lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
+    lbl_inputs_1 = tk.Label(frame_inputs, text="No file selected", name='disease1', font=("Roboto", round(user_height/70)))
+    lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", name='disease2', font=("Roboto", round(user_height/70)))
     lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
     lbl_inputs_4 = tk.Label(frame_inputs, text="Select Options:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
+    # lbl_inputs_5 = tk.Label(frame_inputs, text="Results:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
 
     # Defining button in frame_inputs
     upload_1 = tk.Button(frame_inputs, text="Genetic Disease 1", font=("Roboto", round(user_height/70)), command=lambda: upload_file(lbl_inputs_1))
@@ -118,8 +170,8 @@ if __name__ == "__main__":
     radio3 = tk.Radiobutton(frame_inputs, text="Generate Manhattan Plot", font=("Roboto", round(user_height/70)), variable=stats_test, value="M", command=show_test_variables)
 
     cor_method = tk.StringVar(value="P")
-    method1 = tk.Radiobutton(frame_inputs, text="Pearson's", font=("Roboto", round(user_height / 70)), variable=cor_method, value="P")
-    method2 = tk.Radiobutton(frame_inputs, text="Spearman's", font=("Roboto", round(user_height / 70)), variable=cor_method, value="S")
+    method1 = tk.Radiobutton(frame_inputs, text="Beta values", font=("Roboto", round(user_height / 70)), variable=cor_method, value="B")
+    method2 = tk.Radiobutton(frame_inputs, text="P values", font=("Roboto", round(user_height / 70)), variable=cor_method, value="P")
 
     ldsc_n1 = tk.IntVar(value=0)
     ldsc_n2 = tk.IntVar(value=0)
@@ -141,24 +193,29 @@ if __name__ == "__main__":
 
     frame_inputs.columnconfigure(0, weight=1, minsize=(user_width*0.25*0.50))
     frame_inputs.columnconfigure(1, weight=1, minsize=(user_width*0.25*0.50))
+    # frame_inputs.columnconfigure(2, weight=1, minsize=(user_width*0.50))
 
 
-    lbl_inputs_0.grid(row=1,column=0, columnspan=3, sticky="w")
+    lbl_inputs_0.grid(row=1,column=0, columnspan=2, sticky="w")
     upload_1.grid(row=2, column=0, columnspan=1, sticky="nsew")
     upload_2.grid(row=3, column=0, columnspan=1, sticky="nsew")
     lbl_inputs_1.grid(row=2, column=1, columnspan=2, sticky="w", padx=5)
     lbl_inputs_2.grid(row=3, column=1, columnspan=2, sticky="w", padx=5)
     frame_inputs.rowconfigure(4, minsize=30)
     lbl_inputs_3.grid(row=5,column=0, columnspan=2, sticky="w")
-    radio1.grid(row=6,column=0, columnspan=4, sticky="w")
-    radio2.grid(row=7,column=0, columnspan=4, sticky="w")
-    radio3.grid(row=8,column=0, columnspan=4, sticky="w")
+    radio1.grid(row=6,column=0, columnspan=2, sticky="w")
+    radio2.grid(row=7,column=0, columnspan=2, sticky="w")
+    radio3.grid(row=8,column=0, columnspan=2, sticky="w")
     frame_inputs.rowconfigure(9, minsize=30)
-    lbl_inputs_4.grid(row=10,column=0, columnspan=4, sticky="w")
-    method1.grid(row=11, column=0, columnspan=4, sticky="w")
-    method2.grid(row=12, column=0, columnspan=4, sticky="w")
+    lbl_inputs_4.grid(row=10,column=0, columnspan=2, sticky="w")
+    method1.grid(row=11, column=0, columnspan=2, sticky="w")
+    method2.grid(row=12, column=0, columnspan=2, sticky="w")
+    # lbl_inputs_5.grid(row=1, column=2, columnspan=2, sticky="w")
     frame_inputs.rowconfigure(13, minsize=20)
-    go.grid(row=14,column=0, columnspan=3, sticky="w")
+    go.grid(row=14,column=0, columnspan=2, sticky="w")
+
+    disease1_path = StringVar()
+    disease2_path = StringVar()
 
     # Outputs
     frame_outputs.grid(row=0, column=1)
