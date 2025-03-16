@@ -24,9 +24,3 @@ Summary statistics should be downloaded to `data/` directory so that they are no
 - Bertrand
 - Zachary
 - Isabella
-
-## Running the Flask app
-
-```python
-python app.py
-```
