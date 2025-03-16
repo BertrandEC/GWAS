@@ -28,12 +28,13 @@ def tidy_summary_stats(df: pd.DataFrame, significance=1e-2, rsid=False) -> pd.Da
     # Remove columns that are not needed
     tidy = tidy[to_keep]
     return tidy
-
-def manual_pearson_correlation(df, col1, col2):
+ 
+def manual_pearson_correlation(df, x, y):
     """Can use to check linear relationships between odds ratios or p-values.
     correlation tells you "how much" two variables are related."""
-    x = df[col1]
-    y = df[col2]
+    if isinstance(x, str):
+        x = df[x]
+        y = df[y]
 
     x_mean = np.mean(x)
     y_mean = np.mean(y)
