@@ -5,15 +5,14 @@ from tkinter import filedialog
 from tkinter import messagebox
 from pathlib import Path
 
-
 # Defining Function
 # Function to upload a file and display its content in the GUI
 def upload_file(upload_label):
-    file_path = filedialog.askopenfilename(filetypes=[("TSV files", "*.tsv.gz")])
+    file_path = filedialog.askopenfilename(filetypes=[("TSV files", "*.png")])
     if file_path:
         confirm = messagebox.askyesno("Confirm Upload", f"Are you sure you want to upload this file?\n{file_path}")
         if confirm:
-            upload_label.config(text=f"{shorten_path(file_path)} uploaded", font = ("Helvetica", round(user_height/70)))
+            upload_label.config(text=f"{shorten_path(file_path)}", font = ("Helvetica", round(user_height/70)))
             check_files_uploaded()
         else:
             upload_label.config(text="Upload Cancelled")
@@ -21,16 +20,23 @@ def upload_file(upload_label):
 
 def shorten_path(full_path):
     p = Path(full_path)
-    return ".../"+"/".join(p.parts[-2:]) if len(p.parts) > 2 else str(p)
+    q = p.parts[len(p.parts)-1]
+    if len(p.parts) > 2:
+        if len(q) >= 20:
+            r = q[0:6]+"..."+q[len(q)-10:len(q)]
+            print(r)
+            return ".../"+r
+        else:
+            return ".../"+q
+    else:
+        str(p)
 
 def GO():
     pass
 
 def check_files_uploaded():
     if lbl_inputs_1.cget("text") != "No file selected" and lbl_inputs_2.cget("text") != "No file selected":
-        go.config(fg="green")
-    else:
-        go.config(fg="red")
+        go.config(bg="green")
 
 
 # Setting up the window
@@ -53,10 +59,10 @@ frame_title.pack_propagate(False)
 frame_content = tk.Frame(root, width=user_width, height=(user_height-(user_height/12)))
 frame_content.grid_propagate(False)
 #Create frame for inputs: frame_inputs
-frame_inputs = tk.Frame(frame_content, width=(user_width*0.25), height=(user_height-(user_height/12)))
+frame_inputs = tk.Frame(frame_content, width=(user_width*0.30), height=(user_height-(user_height/12)))
 frame_inputs.grid_propagate(False)
 #Create frame for outputs: frame_outputs
-frame_outputs = tk.Frame(frame_content, width=(user_width*0.75), height=(user_height-(user_height/12)))
+frame_outputs = tk.Frame(frame_content, width=(user_width*0.70), height=(user_height-(user_height/12)))
 frame_outputs.grid_propagate(False)
 
 
@@ -70,20 +76,20 @@ lbl_title.pack(expand=True)
 
 
 # Defining label in frame_inputs
-lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS Summary (.tsv.gz):", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6")
+lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS Summary (.tsv.gz):", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
 lbl_inputs_1 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
 lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", font=("Roboto", round(user_height/70)))
-lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6")
-lbl_inputs_4 = tk.Label(frame_inputs, text="Select Correlation Test:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6")
+lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
+lbl_inputs_4 = tk.Label(frame_inputs, text="Select Correlation Test:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
 
 # Defining button in frame_inputs
 upload_1 = tk.Button(frame_inputs, text="Genetic Disease 1", font=("Roboto", round(user_height/70)), command=lambda: upload_file(lbl_inputs_1))
 upload_2 = tk.Button(frame_inputs, text="Genetic Disease 2", font=("Roboto", round(user_height/70)), command=lambda: upload_file(lbl_inputs_2))
-go = tk.Button(frame_inputs, text="GO!", font=("Roboto", round(user_height/60), "bold"), bg="#FF3B3B", fg="red", padx=20, pady=10, command=lambda: GO())
+go = tk.Button(frame_inputs, text="GO!", font=("Roboto", round(user_height/60), "bold"), bg="#FF3B3B", fg="black", padx=20, pady=10, command=lambda: GO())
 
 # Defining radio buttons in frame_inputs
-stats_test = tk.StringVar(value="")
-cor_method = tk.StringVar(value="")
+stats_test = tk.StringVar(value="LR")
+cor_method = tk.StringVar(value="P")
 radio1 = tk.Radiobutton(frame_inputs, text="Linear Regression", font=("Roboto", round(user_height/70)), variable=stats_test, value="LR")
 radio2 = tk.Radiobutton(frame_inputs, text="Linkage Disequilibrium Score Regression (LDSC)", font=("Roboto", round(user_height/70)), variable=stats_test, value="LDSC")
 radio3 = tk.Radiobutton(frame_inputs, text="Pearson's", font=("Roboto", round(user_height/70)), variable=cor_method, value="P")
