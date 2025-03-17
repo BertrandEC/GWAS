@@ -21,15 +21,15 @@ class LDSCResult:
      p_value: float
 
 
-def ldsc(disease1: str, n_disease1: int, disease2: str, n_disease2: int, population: LDPopulation = LDPopulation.EUROPEAN) -> LDSCResult | None:
+def ldsc(disease1: str, n_disease1: int, disease2: str, n_disease2: int, stat1: str = 'beta', stat2: str = 'beta', population: LDPopulation = LDPopulation.EUROPEAN) -> LDSCResult | None:
     """Returns results from running LDSC on given"""
     with tempfile.TemporaryDirectory() as tmpdir:
         try:
             if not Path("data", ALLELE_LIST[0]).is_file():
                 raise LDSCError(f'Allele list file not found at data/{ALLELE_LIST[0]}. Please download from {ALLELE_LIST[1]}')
-            munge_cmd = f'munge_sumstats.py --sumstats {{}} --N {{}} --snp variant_id --ignore rsid --out {tmpdir}/disease1 --merge-alleles data/{ALLELE_LIST[0]}'
-            subprocess.run(munge_cmd.format(disease1, n_disease1), shell=True, capture_output=True, check=True)
-            subprocess.run(munge_cmd.format(disease2, n_disease2), shell=True, capture_output=True, check=True)
+            munge_cmd = f'munge_sumstats.py --sumstats {{}} --N {{}} --snp variant_id --signed-sumstats {{}},{{}} --ignore rsid --out {tmpdir}/disease{{}} --merge-alleles data/{ALLELE_LIST[0]}'
+            subprocess.run(munge_cmd.format(disease1, n_disease1, stat1, 1 if stat1 in ['or', 'odds_ratio'] else 0, 1), shell=True, capture_output=True, check=True)
+            subprocess.run(munge_cmd.format(disease2, n_disease2, stat2, 1 if stat2 in ['or', 'odds_ratio'] else 0, 2), shell=True, capture_output=True, check=True)
             if not Path("data", population.value[0]).exists():
                 raise LDSCError(f'Precomputed LDScores do not exist at data/{population.value[0]}. Please download from {population.value[1]}')
             cmd = f'ldsc.py --rg {tmpdir}/disease1.sumstats.gz,{tmpdir}/disease2.sumstats.gz --ref-ld-chr data/{population.value[0]}/ --w-ld-chr data/{population.value[0]}/ --out {tmpdir}/ldsc_results'

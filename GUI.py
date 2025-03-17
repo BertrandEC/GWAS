@@ -6,6 +6,8 @@ from pathlib import Path
 import pandas as pd
 import hashlib
 from threading import Thread
+import numpy as np
+from PIL import Image, ImageTk, ImageOps
 
 from gwas_analysis.plots import plot_joint_manhattan, plot_scatter_with_regression
 from gwas_analysis.stats import tidy_summary_stats
@@ -43,7 +45,7 @@ def shorten_path(full_path):
 def load_data():
     if stats_test.get() == "LDSC":
         root.after(0, lambda: go.config(text="Calculating LDSC..."))
-        result = ldsc(disease1_path.get(), ldsc_n1.get(), disease2_path.get(), ldsc_n2.get())
+        result = ldsc(disease1_path.get(), ldsc_n1.get(), disease2_path.get(), ldsc_n2.get(), ldsc_stat1.get(), ldsc_stat2.get())
         root.after(0, display_ldsc, result)
         return
 
@@ -66,25 +68,46 @@ def load_data():
         merged_df.to_csv(f'data/{hash1}_{hash2}.tsv', index=False, sep='\t')
 
     root.after(0, lambda: go.config(text="Computing statistical method"))
-    match stats_test.get():
-        case "LR":
-            filtered_df = merged_df[(merged_df['p_value_disease1'] < 1e-4) | (merged_df['p_value_disease2'] < 1e-4)]
-            # filtered_df = filtered_df[(np.abs(filtered_df['beta_disease1']) > 0.01) | (np.abs(filtered_df['beta_disease2']) > 0.01)]
-            merged_df.to_csv(f'data/{hash1}_{hash2}_filtered.tsv', index=False, sep='\t')
-            if cor_method.get() == "B":
-                plot_scatter_with_regression(filtered_df, col1='beta_disease1', col2='beta_disease2')
-            elif cor_method.get() == "P":
-                plot_scatter_with_regression(filtered_df, col1='neg_log_p_value_disease1', col2='neg_log_p_value_disease2')
-        case "M":
-            plot_joint_manhattan(merged_df, 'neg_log_p_value_disease1', 'neg_log_p_value_disease2')
+    if stats_test.get() == "figures":
+        filtered_df = merged_df[(merged_df['p_value_disease1'] < 1e-5) | (merged_df['p_value_disease2'] < 1e-5)]
+        # filtered_df = filtered_df[(np.abs(filtered_df['beta_disease1']) > 0.01) | (np.abs(filtered_df['beta_disease2']) > 0.01)]
+        plot_scatter_with_regression(filtered_df, col1='beta_disease1', col2='beta_disease2', output="beta_regression")
+        plot_scatter_with_regression(filtered_df, col1='neg_log_p_value_disease1', col2='neg_log_p_value_disease2', output="p_regression")
+        plot_joint_manhattan(merged_df, 'neg_log_p_value_disease1', 'neg_log_p_value_disease2')
+        root.after(0, display_images)
+    elif stats_test.get() == "sig":
+        filtered_df = merged_df[(merged_df['p_value_disease1'] < 1e-5) | (merged_df['p_value_disease2'] < 1e-5)]
+        # filtered_df: pd.DataFrame = filtered_df[(np.abs(filtered_df['beta_disease1']) > 0.05) | (np.abs(filtered_df['beta_disease2']) > 0.05)]
+        filtered_df.to_csv('data/significant_SNPs.tsv', index=False, sep='\t')
+        root.after(0, display_significant, filtered_df)
 
-    root.after(0, display_image)
 
-def display_image():
-    result_image = tk.PhotoImage(file='data/figure.png')
-    result_label.config(text='', image=result_image)
-    result_label.image = result_image
-    result_label.grid()
+def display_significant(df: pd.DataFrame):
+    result = """
+    Significant SNPs saved to data/significant_SNPs.tsv
+    """
+    result_label1.config(text=result, image='')
+    result_label1.grid()
+    result_label2.grid_remove()
+    result_label3.grid_remove()
+    go.config(text="GO!", state="normal")
+
+def display_images():
+    result_image1 = tk.PhotoImage(file='data/joint_manhattan.png')
+    result_label1.config(text='', image=result_image1)
+    result_label1.image = result_image1
+    result_label1.grid()
+    size = (round(user_width*0.7*0.5), round(user_height*0.7*0.5))
+    result_image2 = ImageOps.contain(Image.open('data/beta_regression.png'), size)
+    resized2 = ImageTk.PhotoImage(result_image2)
+    result_label2.config(text='', image=resized2)
+    result_label2.image = resized2
+    result_label2.grid()
+    result_image3 = ImageOps.contain(Image.open('data/p_regression.png'), size)
+    resized3 = ImageTk.PhotoImage(result_image3)
+    result_label3.config(text='', image=resized3)
+    result_label3.image = resized3
+    result_label3.grid()
     go.config(text="GO!", state="normal")
 
 
@@ -97,8 +120,10 @@ def display_ldsc(result: LDSCResult | None):
         """
     else:
         str_result = "Unable to compute LDSC for provided datasets"
-    result_label.config(text=str_result, image='')
-    result_label.grid()
+    result_label1.config(text=str_result, image='')
+    result_label1.grid()
+    result_label2.grid_remove()
+    result_label3.grid_remove()
     go.config(text="GO!", state="normal")
 
 
@@ -119,23 +144,26 @@ def integer_validate(x: str):
     return x.isdigit() or not x
 
 def show_test_variables():
-    method1.grid_remove()
-    method2.grid_remove()
-    lbl_ldsc_1.grid_forget()
-    lbl_ldsc_2.grid_forget()
-    ldsc_input_1.grid_forget()
-    ldsc_input_2.grid_forget()
-    match stats_test.get():
-        case "LR":
-            method1.grid()
-            method2.grid()
-        case "LDSC":
-            lbl_ldsc_1.grid(row=11,column=0, columnspan=2, sticky="w", padx=5)
-            lbl_ldsc_2.grid(row=12,column=0, columnspan=2, sticky="w", padx=5)
-            ldsc_input_1.grid(row=11,column=1, columnspan=4, sticky="w")
-            ldsc_input_2.grid(row=12,column=1, columnspan=4, sticky="w")
-        case "M":
-            pass
+    if stats_test.get() == "LDSC":
+        lbl_inputs_4.grid()
+        lbl_ldsc_1.grid()
+        lbl_ldsc_2.grid()
+        lbl_ldsc_3.grid()
+        lbl_ldsc_4.grid()
+        ldsc_input_1.grid()
+        ldsc_input_2.grid()
+        ldsc_input_3.grid()
+        ldsc_input_4.grid()
+    else:
+        lbl_inputs_4.grid_remove()
+        lbl_ldsc_1.grid_remove()
+        lbl_ldsc_2.grid_remove()
+        lbl_ldsc_3.grid_remove()
+        lbl_ldsc_4.grid_remove()
+        ldsc_input_1.grid_remove()
+        ldsc_input_2.grid_remove()
+        ldsc_input_3.grid_remove()
+        ldsc_input_4.grid_remove()
 
 if __name__ == "__main__":
     Path("data").mkdir(parents=True, exist_ok=True)
@@ -179,8 +207,7 @@ if __name__ == "__main__":
     lbl_inputs_0 = tk.Label(frame_inputs, text="Upload GWAS Summary (.tsv):", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
     lbl_inputs_1 = tk.Label(frame_inputs, text="No file selected", name='disease1', font=("Roboto", round(user_height/70)))
     lbl_inputs_2 = tk.Label(frame_inputs, text="No file selected", name='disease2', font=("Roboto", round(user_height/70)))
-    lbl_inputs_3 = tk.Label(frame_inputs, text="Select Statistical Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
-    lbl_inputs_4 = tk.Label(frame_inputs, text="Select Options:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
+    lbl_inputs_3 = tk.Label(frame_inputs, text="Select Method:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
 
     lbl_outputs_1 = tk.Label(frame_outputs, text="Results:", font=("Roboto", round(user_height / 45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
 
@@ -190,24 +217,29 @@ if __name__ == "__main__":
     go = tk.Button(frame_inputs, text="GO!", font=("Roboto", round(user_height/60), "bold"), bg="#FF3B3B", fg="black", padx=20, pady=10, command=lambda: GO())
 
     # Defining radio buttons in frame_inputs
-    stats_test = tk.StringVar(value="LR")
-    radio1 = tk.Radiobutton(frame_inputs, text="Linear Regression", font=("Roboto", round(user_height/70)), variable=stats_test, value="LR", command=show_test_variables)
+    stats_test = tk.StringVar(value="figures")
+    radio1 = tk.Radiobutton(frame_inputs, text="Generate Figures", font=("Roboto", round(user_height/70)), variable=stats_test, value="figures", command=show_test_variables)
     radio2 = tk.Radiobutton(frame_inputs, text="Linkage Disequilibrium Score Regression (LDSC)", font=("Roboto", round(user_height/70)), variable=stats_test, value="LDSC", command=show_test_variables)
-    radio3 = tk.Radiobutton(frame_inputs, text="Generate Manhattan Plot", font=("Roboto", round(user_height/70)), variable=stats_test, value="M", command=show_test_variables)
+    radio4 = tk.Radiobutton(frame_inputs, text="Significant SNPs", font=("Roboto", round(user_height/70)), variable=stats_test, value="sig", command=show_test_variables)
 
-    cor_method = tk.StringVar(value="P")
-    method1 = tk.Radiobutton(frame_inputs, text="Beta values", font=("Roboto", round(user_height / 70)), variable=cor_method, value="B")
-    method2 = tk.Radiobutton(frame_inputs, text="P values", font=("Roboto", round(user_height / 70)), variable=cor_method, value="P")
-
+    lbl_inputs_4 = tk.Label(frame_inputs, text="Select Options:", font=("Roboto", round(user_height/45), "bold"), fg="#333", bg="#B6D4F6", width=user_width)
     ldsc_n1 = tk.IntVar(value=0)
     ldsc_n2 = tk.IntVar(value=0)
+    ldsc_stat1 = tk.StringVar(value='beta')
+    ldsc_stat2 = tk.StringVar(value='beta')
     lbl_ldsc_1 = tk.Label(frame_inputs, text="N for Disease 1", font=("Roboto", round(user_height/70)))
     lbl_ldsc_2 = tk.Label(frame_inputs, text="N for Disease 2", font=("Roboto", round(user_height/70)))
+    lbl_ldsc_3 = tk.Label(frame_inputs, text="Statistic (disease 1)", font=("Roboto", round(user_height/70)))
+    lbl_ldsc_4 = tk.Label(frame_inputs, text="Statistic (disease 2)", font=("Roboto", round(user_height/70)))
     vcmd = root.register(integer_validate)
     ldsc_input_1 = tk.Entry(frame_inputs, textvariable=ldsc_n1, validate="all", validatecommand=(vcmd, "%P"))
     ldsc_input_2 = tk.Entry(frame_inputs, textvariable=ldsc_n2, validate="all", validatecommand=(vcmd, "%P"))
+    ldsc_input_3 = tk.Entry(frame_inputs, textvariable=ldsc_stat1)
+    ldsc_input_4 = tk.Entry(frame_inputs, textvariable=ldsc_stat2)
 
-    result_label = tk.Label(frame_outputs, font=("Roboto", round(user_height/35), "bold"))
+    result_label1 = tk.Label(frame_outputs, font=("Roboto", round(user_height/35), "bold"))
+    result_label2 = tk.Label(frame_outputs)
+    result_label3 = tk.Label(frame_outputs)
 
     # Calling the widgets
     # Title
@@ -232,13 +264,21 @@ if __name__ == "__main__":
     lbl_inputs_3.grid(row=5,column=0, columnspan=2, sticky="w")
     radio1.grid(row=6,column=0, columnspan=2, sticky="w")
     radio2.grid(row=7,column=0, columnspan=2, sticky="w")
-    radio3.grid(row=8,column=0, columnspan=2, sticky="w")
-    frame_inputs.rowconfigure(9, minsize=30)
-    lbl_inputs_4.grid(row=10,column=0, columnspan=2, sticky="w")
-    method1.grid(row=11, column=0, columnspan=2, sticky="w")
-    method2.grid(row=12, column=0, columnspan=2, sticky="w")
-    frame_inputs.rowconfigure(13, minsize=20)
-    go.grid(row=14,column=0, columnspan=2, sticky="w")
+    radio4.grid(row=9,column=0, columnspan=2, sticky="w")
+    frame_inputs.rowconfigure(10, minsize=30)
+    lbl_inputs_4.grid(row=11,column=0, columnspan=2, sticky="w")
+    frame_inputs.rowconfigure(15, minsize=20)
+    go.grid(row=17,column=0, columnspan=2, sticky="w")
+
+    lbl_ldsc_1.grid(row=12,column=0, columnspan=2, sticky="w", padx=5)
+    lbl_ldsc_2.grid(row=13,column=0, columnspan=2, sticky="w", padx=5)
+    lbl_ldsc_3.grid(row=14,column=0, columnspan=2, sticky="w", padx=5)
+    lbl_ldsc_4.grid(row=15,column=0, columnspan=2, sticky="w", padx=5)
+    ldsc_input_1.grid(row=12,column=1, columnspan=4, sticky="w")
+    ldsc_input_2.grid(row=13,column=1, columnspan=4, sticky="w")
+    ldsc_input_3.grid(row=14,column=1, columnspan=4, sticky="w")
+    ldsc_input_4.grid(row=15,column=1, columnspan=4, sticky="w")
+    show_test_variables()
 
     disease1_path = StringVar()
     disease2_path = StringVar()
@@ -246,11 +286,12 @@ if __name__ == "__main__":
     # Outputs
     frame_outputs.grid(row=0, column=1)
     lbl_outputs_1.pack(anchor="center")
-    result_label.pack(anchor="center")
     frame_outputs.columnconfigure(0, weight=1, minsize=(user_width*0.60))
 
     lbl_outputs_1.grid(row=1, column=0,  sticky="we")
-    result_label.grid(row=2,column=0, rowspan=10, sticky="we")
+    result_label1.grid(row=2,column=0, columnspan=10, sticky="we")
+    result_label2.grid(row=3,column=0, columnspan=5, sticky="w", padx=5)
+    result_label3.grid(row=3,column=0, columnspan=5, sticky="e", padx=5)
     # result_label.grid_remove()
 
     # Run the application

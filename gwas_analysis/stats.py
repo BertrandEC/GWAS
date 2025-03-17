@@ -4,14 +4,26 @@ import statsmodels.api as sm
 import scipy.stats as stats
 
 
+COLUMN_MAP = {
+    'p': 'p_value',
+    'p-value': 'p_value',
+    'rsid': 'variant_id',
+    'or': 'odds_ratio',
+    'chrom': 'chromosome',
+    'position': 'base_pair_location',
+    'pos': 'base_pair_location',
+    'se': 'standard_error',
+}
+
 def tidy_summary_stats(df: pd.DataFrame, significance=1e-2, rsid=False) -> pd.DataFrame:
     to_keep = ['risk_allele', 'chromosome', 'base_pair_location', 'p_value', 'neg_log_p_value', 'beta', 'odds_ratio', 'z_score', 'effect_allele_frequency', 'effect_allele', 'other_allele']
-    tidy: pd.DataFrame = df[df['p_value'] < significance].copy()
+    tidy: pd.DataFrame = df.copy()
 
-    rsid_col = next(filter(lambda c: c in tidy, ['variant_id', 'rsid']), None)
-    if rsid or rsid_col is not None:
-        tidy['risk_allele'] = tidy[rsid_col]
-    else:
+    tidy.columns = tidy.columns.str.lower()
+    tidy = tidy.rename(columns=COLUMN_MAP)
+    tidy = tidy[tidy['p_value'] < significance]
+
+    if not rsid:
         tidy['risk_allele'] = tidy['chromosome'].astype(str) + ":" + tidy['base_pair_location'].astype(str) + ":" + tidy['effect_allele'] + ':' + tidy['other_allele']
 
     tidy['neg_log_p_value'] = -np.log10(tidy['p_value'])

@@ -96,11 +96,11 @@ def plot_joint_manhattan(df: pd.DataFrame, neg_log_pval_col1: str, neg_log_pval_
 
     plt.legend(loc='upper left')
     plt.tight_layout()
-    plt.savefig('data/figure.png')
+    plt.savefig('data/joint_manhattan.png')
 
 
 
-def plot_scatter_with_regression(df: pd.DataFrame, col1: str, col2: str):
+def plot_scatter_with_regression(df: pd.DataFrame, col1: str, col2: str, output: str):
     """For visualizing relationships between two variables"""
     correlation1 = manual_pearson_correlation(df, col1, col2)
     correlation2 = manual_spearman_correlation(df, col1, col2)
@@ -117,7 +117,7 @@ def plot_scatter_with_regression(df: pd.DataFrame, col1: str, col2: str):
     plt.xlabel(col1)
     plt.ylabel(col2)
     plt.title(f'Scatter plot with Regression line: {col1} vs {col2}\n Pearson r = {correlation1:.3f}, Spearman s = {correlation2:.3f}')
-    plt.savefig('data/figure.png')
+    plt.savefig(f'data/{output}.png')
 
 
 def plot_logistic_regression(model, x_vals):
